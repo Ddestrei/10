@@ -1,0 +1,8 @@
+org\ddestrei\orderservice\model\OrderLineItems.class
+org\ddestrei\orderservice\dto\OrderRequest.class
+org\ddestrei\orderservice\service\OrderService.class
+org\ddestrei\orderservice\controller\OrderController.class
+org\ddestrei\orderservice\model\Order.class
+org\ddestrei\orderservice\repository\OrderRepository.class
+org\ddestrei\orderservice\dto\OrderLineItemsDto.class
+org\ddestrei\orderservice\OrderServiceApplication.class

@@ -1,0 +1,10 @@
+org\ddestrei\productservice\model\Product.class
+org\ddestrei\productservice\dto\ProductResponse$ProductResponseBuilder.class
+org\ddestrei\productservice\controller\ProductController.class
+org\ddestrei\productservice\dto\ProductResponse.class
+org\ddestrei\productservice\dto\ProductRequest$ProductRequestBuilder.class
+org\ddestrei\productservice\ProductServiceApplication.class
+org\ddestrei\productservice\repository\ProductRepository.class
+org\ddestrei\productservice\dto\ProductRequest.class
+org\ddestrei\productservice\model\Product$ProductBuilder.class
+org\ddestrei\productservice\service\ProductService.class
