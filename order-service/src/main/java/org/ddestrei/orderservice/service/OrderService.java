@@ -21,11 +21,11 @@ import java.util.UUID;
 public class OrderService {
     private final OrderRepository orderRepository;
 
-    private final WebClient webClient;
+    private final WebClient.Builder webClientBuilder;
 
-    public OrderService(OrderRepository orderRepository, WebClient webClient) {
+    public OrderService(OrderRepository orderRepository, WebClient.Builder webClientBuilder) {
         this.orderRepository = orderRepository;
-        this.webClient = webClient;
+        this.webClientBuilder = webClientBuilder;
     }
 
     public void placeOrder(OrderRequest orderRequest) {
@@ -42,8 +42,8 @@ public class OrderService {
                 .map(OrderLineItems::getSkuCode)
                 .toList();
 
-        InventoryResponse[] inventoryResponsesArray = webClient.get()
-                .uri("http://localhost:8082/api/inventory",
+        InventoryResponse[] inventoryResponsesArray = webClientBuilder.build().get()
+                .uri("http://inventory-service/api/inventory",
                         uriBuilder -> uriBuilder.queryParam("skuCode", skuCodes).build())
                 .retrieve()
                 .bodyToMono(InventoryResponse[].class)

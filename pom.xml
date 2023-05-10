@@ -12,6 +12,7 @@
         <module>product-service</module>
         <module>order-service</module>
         <module>inventory-service</module>
+        <module>discovery-server</module>
     </modules>
 
     <parent>
@@ -32,6 +33,13 @@
                 <groupId>org.testcontainers</groupId>
                 <artifactId>testcontainers-bom</artifactId>
                 <version>1.18.0</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>2022.0.2</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
