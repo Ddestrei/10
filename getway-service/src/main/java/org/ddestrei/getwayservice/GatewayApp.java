@@ -4,8 +4,8 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class GetwayApp {
+public class GatewayApp {
     public static void main(String[] args) {
-        SpringApplication.run(GetwayApp.class, args);
+        SpringApplication.run(GatewayApp.class, args);
     }
 }
