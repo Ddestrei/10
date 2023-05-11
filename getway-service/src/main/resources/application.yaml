@@ -1,0 +1,31 @@
+server:
+    port: 8080
+spring:
+    application:
+        name: gatewayService
+    client:
+        serviceUrl:
+            defaultZone: http:localhost:8761/eureka
+    cloud:
+        gateway:
+            routes[0]:
+                id: product-service
+                uri: lb://product-service
+                predicates[0]: Path=/api/product
+            routes[1]:
+                id: order-service
+                uri: lb://order-service
+                predicates[0]: Path=/api/order
+            routes[2]:
+                id: discovery-service
+                uri: http://localhost:8761
+                predicates[0]: Path=/eureka/web
+                filters[0]: SetPath=/
+            routes[3]:
+                id: discovery-service-static
+                uri: http://localhost:8761
+                predicates[0]: Path=/eureka/**
+logging:
+    level:
+        org.springframework.cloud.gateway.handler.RoutePredicateHandlerMapping: TRACE
+
