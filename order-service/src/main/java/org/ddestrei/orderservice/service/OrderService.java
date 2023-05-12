@@ -28,7 +28,7 @@ public class OrderService {
         this.webClientBuilder = webClientBuilder;
     }
 
-    public void placeOrder(OrderRequest orderRequest) {
+    public String placeOrder(OrderRequest orderRequest) {
         Order order = new Order();
         order.setOrderNumber(UUID.randomUUID().toString());
         List<OrderLineItems> orderLineItemsList = orderRequest.getOrderLineItemsDtoList()
@@ -52,11 +52,12 @@ public class OrderService {
                 .allMatch(InventoryResponse::isInStock);
         if(allProductsInStock){
             orderRepository.save(order);
+            return "Order place successfully";
         }
         else {
             log.error("Product is not in stock!!!");
         }
-
+        return "Sth goes wrong";
     }
 
     private OrderLineItems mapToDto(OrderLineItemsDto orderLineItemsDto) {

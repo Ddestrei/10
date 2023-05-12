@@ -1,5 +1,6 @@
 server:
     port: 0
+
 spring:
     application:
         name: order-service
@@ -12,7 +13,42 @@ spring:
         hibernate:
             ddl-auto: create
         database-platform: org.hibernate.dialect.MySQLDialect
+
 eureka:
     client:
         serviceUrl:
             defaultZone: http://eureka:password@localhost:8761/eureka
+
+management:
+    health:
+        circuitbreaker:
+            enable: true
+    endpoints:
+        web:
+            exposure:
+                include: '*'
+        health:
+            show-details: always
+resilience4j:
+    circuitbreaker:
+        instance:
+            inventory:
+                registerHealthIndicator: true
+                event-consumer-buffer-size: 10
+                slidingWindowType: COUNT_BASED
+                slidingWindowSize: 5
+                failureRateThreshold: 50
+                waitDurationInOpenState: 5s
+                permittedNumberOfCallsInHalfOpenState: 3
+                automaticTransitionFromOpenToHalfEnable: true
+    timelimiter:
+        instances:
+            inventory:
+                timeout-duration: 3s
+    retry:
+        instances:
+            inventory:
+                max-attempts: 3
+                wait-duration: 5s
+
+
