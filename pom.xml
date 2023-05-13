@@ -13,7 +13,7 @@
         <module>order-service</module>
         <module>inventory-service</module>
         <module>discovery-server</module>
-        <module>getway-service</module>
+        <module>gateway-service</module>
     </modules>
 
     <parent>

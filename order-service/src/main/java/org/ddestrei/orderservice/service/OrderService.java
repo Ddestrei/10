@@ -1,5 +1,7 @@
 package org.ddestrei.orderservice.service;
 
+import io.micrometer.tracing.Span;
+import io.micrometer.tracing.Tracer;
 import lombok.extern.slf4j.Slf4j;
 import org.ddestrei.orderservice.dto.InventoryResponse;
 import org.ddestrei.orderservice.dto.OrderLineItemsDto;
@@ -20,12 +22,15 @@ import java.util.UUID;
 @Slf4j
 public class OrderService {
     private final OrderRepository orderRepository;
-
     private final WebClient.Builder webClientBuilder;
+    private final Tracer tracer;
 
-    public OrderService(OrderRepository orderRepository, WebClient.Builder webClientBuilder) {
+    public OrderService(OrderRepository orderRepository,
+                        WebClient.Builder webClientBuilder,
+                        Tracer tracer) {
         this.orderRepository = orderRepository;
         this.webClientBuilder = webClientBuilder;
+        this.tracer = tracer;
     }
 
     public String placeOrder(OrderRequest orderRequest) {
@@ -42,22 +47,27 @@ public class OrderService {
                 .map(OrderLineItems::getSkuCode)
                 .toList();
 
-        InventoryResponse[] inventoryResponsesArray = webClientBuilder.build().get()
-                .uri("http://inventory-service/api/inventory",
-                        uriBuilder -> uriBuilder.queryParam("skuCode", skuCodes).build())
-                .retrieve()
-                .bodyToMono(InventoryResponse[].class)
-                .block();
-        boolean allProductsInStock = Arrays.stream(inventoryResponsesArray)
-                .allMatch(InventoryResponse::isInStock);
-        if(allProductsInStock){
-            orderRepository.save(order);
-            return "Order place successfully";
+        Span inventoryServiceLookup = tracer.nextSpan().name("Inventory service look up");
+        try(Tracer.SpanInScope spanInScope = tracer.withSpan(inventoryServiceLookup.start())){
+            InventoryResponse[] inventoryResponsesArray = webClientBuilder.build().get()
+                    .uri("http://inventory-service/api/inventory",
+                            uriBuilder -> uriBuilder.queryParam("skuCode", skuCodes).build())
+                    .retrieve()
+                    .bodyToMono(InventoryResponse[].class)
+                    .block();
+            boolean allProductsInStock = Arrays.stream(inventoryResponsesArray)
+                    .allMatch(InventoryResponse::isInStock);
+            if(allProductsInStock){
+                orderRepository.save(order);
+                return "Order place successfully";
+            }
+            else {
+                log.error("Product is not in stock!!!");
+            }
+            return "Sth goes wrong";
+        } finally {
+            inventoryServiceLookup.end();
         }
-        else {
-            log.error("Product is not in stock!!!");
-        }
-        return "Sth goes wrong";
     }
 
     private OrderLineItems mapToDto(OrderLineItemsDto orderLineItemsDto) {

@@ -1,5 +1,0 @@
-org\ddestrei\inventoryservice\controller\InventoryController.class
-org\ddestrei\inventoryservice\InventoryServiceApplication.class
-org\ddestrei\inventoryservice\model\Inventory.class
-org\ddestrei\inventoryservice\repository\InventoryRepository.class
-org\ddestrei\inventoryservice\service\InventoryService.class
