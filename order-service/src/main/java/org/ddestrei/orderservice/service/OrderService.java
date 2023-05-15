@@ -6,9 +6,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.ddestrei.orderservice.dto.InventoryResponse;
 import org.ddestrei.orderservice.dto.OrderLineItemsDto;
 import org.ddestrei.orderservice.dto.OrderRequest;
+import org.ddestrei.orderservice.event.OrderPlacedEvent;
 import org.ddestrei.orderservice.model.Order;
 import org.ddestrei.orderservice.model.OrderLineItems;
 import org.ddestrei.orderservice.repository.OrderRepository;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -24,13 +26,16 @@ public class OrderService {
     private final OrderRepository orderRepository;
     private final WebClient.Builder webClientBuilder;
     private final Tracer tracer;
+    private final KafkaTemplate<String, OrderPlacedEvent> kafkaTemplate;
 
     public OrderService(OrderRepository orderRepository,
                         WebClient.Builder webClientBuilder,
-                        Tracer tracer) {
+                        Tracer tracer,
+                        KafkaTemplate kafkaTemplate) {
         this.orderRepository = orderRepository;
         this.webClientBuilder = webClientBuilder;
         this.tracer = tracer;
+        this.kafkaTemplate = kafkaTemplate;
     }
 
     public String placeOrder(OrderRequest orderRequest) {
@@ -59,12 +64,13 @@ public class OrderService {
                     .allMatch(InventoryResponse::isInStock);
             if(allProductsInStock){
                 orderRepository.save(order);
+                kafkaTemplate.send("notificationTopic", new OrderPlacedEvent(order.getOrderNumber()));
                 return "Order place successfully";
             }
             else {
                 log.error("Product is not in stock!!!");
+                return "Product is not in stock!!!";
             }
-            return "Sth goes wrong";
         } finally {
             inventoryServiceLookup.end();
         }

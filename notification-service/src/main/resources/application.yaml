@@ -1,0 +1,31 @@
+server:
+    port: 0
+spring:
+    application:
+        name: notification-service
+    kafka:
+        bootstrap-servers: localhost:9092
+        template:
+            default-topic: notificationTopic
+        consumer:
+            groupId: notificationId
+            key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+            value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+            properties:
+                spring:
+                    json:
+                        type:
+                            mapping: event:org.ddestrei.notificationservice.event.OrderPlacedEvent
+                        trusted:
+                            packages: "*"
+eureka:
+    client:
+        serviceUrl:
+            defaultZone: http://eureka:password@localhost:8761/eureka
+management:
+    zipkin:
+        tracing:
+            endpoint: http://localhost:9411/api/v2/spans
+    tracing:
+        sampling:
+            probability: 1.0

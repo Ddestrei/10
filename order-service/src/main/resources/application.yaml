@@ -4,6 +4,18 @@ server:
 spring:
     application:
         name: order-service
+    kafka:
+        bootstrap-servers: localhost:9092
+        template:
+            default-topic: notificationTopic
+        producer:
+            key-serializer: org.apache.kafka.common.serialization.StringSerializer
+            value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+            properties:
+                spring:
+                    json:
+                        type:
+                            mapping: event:org.ddestrei.orderservice.event.OrderPlacedEvent
     datasource:
         url: jdbc:mysql://localhost:3306/multiservices
         driver: com.mysql.jdbc.Driver
