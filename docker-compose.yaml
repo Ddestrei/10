@@ -1,8 +1,10 @@
-version: '3'
+version: '3.7'
 services:
     zookeeper:
         image: confluentinc/cp-zookeeper:7.3.2
         container_name: zookeeper
+        ports:
+            - "2181:2181"
         environment:
             ZOOKEEPER_CLIENT_PORT: 2181
             ZOOKEEPER_TICK_TIME: 2000
@@ -18,7 +20,214 @@ services:
             KAFKA_BROKER_ID: 1
             KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
             KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
-            KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://broker:29092
+            KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://broker:9092,PLAINTEXT_INTERNAL://broker:29092
             KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
             KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
             KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+
+    postgres-order:
+        container_name: postgres-order
+        image: postgres:14
+        environment:
+            POSTGRES_DB: order-service
+            POSTGRES_USER: username
+            POSTGRES_PASSWORD: password
+            PGDATA: /data/postgres
+        volumes:
+            - ./postgres-order:/data/postgres
+        expose:
+            - "5431"
+        ports:
+            - "5431:5431"
+        command: -p 5431
+        restart: always
+
+    postgres-inventory:
+        container_name: postgres-inventory
+        image: postgres:14
+        environment:
+            POSTGRES_DB: inventory-service
+            POSTGRES_USER: username
+            POSTGRES_PASSWORD: password
+            PGDATA: /data/postgres
+        volumes:
+            - ./postgres-inventory:/data/postgres
+        expose:
+            - "5431"
+        ports:
+            - "5432:5432"
+        restart: always
+
+    ## Mongo Docker Compose Config
+    mongo:
+        container_name: mongo
+        image: mongo:4.4.14-rc0-focal
+        restart: always
+        ports:
+            - "27017:27017"
+        expose:
+            - "27017"
+        volumes:
+            - ./mongo-data:/data/db
+
+    keycloak-mysql:
+        container_name: keycloak-mysql
+        image: mysql/mysql-server:latest
+        volumes:
+            - ./mysql_keycloak:/var/lib/mysql
+        environment:
+            MYSQL_ROOT_PASSWORD: root
+            MYSQL_DATABASE: keycloak
+            MYSQL_USER: keycloak
+            MYSQL_PASSWORD: password
+
+    keycloak:
+        container_name: keycloak
+        image: quay.io/keycloak/keycloak:18.0.0
+        command: [ "start-dev", "--import-realm" ]
+        environment:
+            DB_VENDOR: MYSQL
+            DB_ADDR: mysql
+            DB_DATABASE: keycloak
+            DB_USER: keycloak
+            DB_PASSWORD: password
+            KEYCLOAK_ADMIN: admin
+            KEYCLOAK_ADMIN_PASSWORD: admin
+        ports:
+            - "8080:8080"
+        volumes:
+            - ./realms/:/opt/keycloak/data/import/
+        depends_on:
+            - keycloak-mysql
+    zipkin:
+        image: openzipkin/zipkin
+        container_name: zipkin
+        ports:
+            - "9411:9411"
+
+        ## Eureka Server
+    discovery-service:
+        image: discovery-service:0.0.1
+        container_name: discovery-service
+        ports:
+            - "8761:8761"
+        environment:
+            - SPRING_PROFILES_ACTIVE=docker
+            - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411
+            - SERVER_PORT=8761
+        depends_on:
+            - zipkin
+
+    gateway-service:
+        image: gateway-service:0.0.3
+        container_name: gateway-service
+        ports:
+            - "8181:8080"
+        expose:
+            - "8181"
+        environment:
+            - SPRING_PROFILES_ACTIVE=docker
+            - LOGGING_LEVEL_ORG_SPRINGFRAMEWORK_SECURITY=TRACE
+            - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka:password@discovery-service:8761/eureka
+            - SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER-URI=http://keycloak:8080/realms/spring-multiservices-realm
+            - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411
+            - EUREKA_CLIENT_REGISTER-WITH-EUREKA=true
+            - EUREKA_CLIENT_FETCH-REGISTRY=true
+            - APP_EUREKA-SERVER=discovery-service
+            - SERVER_PORT=8080
+        depends_on:
+            - zipkin
+            - discovery-service
+            - keycloak
+
+    ## Product-Service Docker Compose Config
+    product-service:
+        container_name: product-service
+        image: product-service:0.0.1
+        ports:
+            - "8084:8084"
+        environment:
+            - SPRING_PROFILES_ACTIVE=docker
+            - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka:password@discovery-service:8761/eureka
+            - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411
+            - EUREKA_CLIENT_REGISTER-WITH-EUREKA=true
+            - EUREKA_CLIENT_FETCH-REGISTRY=true
+            - SPRING_DATA_MONGODB_HOST=mongo
+            - SPRING_DATA_MONGODB_PORT=27017
+            - SPRING_DATA_MONGODB_DATABASE=product-service
+            - SERVER_PORT=8080
+        depends_on:
+            - mongo
+            - discovery-service
+            - gateway-service
+
+    ## Order-Service Docker Compose Config
+    order-service:
+        container_name: order-service
+        image: order-service:0.0.4
+        ports:
+            - "8081:8081"
+        environment:
+            - SPRING_PROFILES_ACTIVE=docker
+            - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-order:5431/order-service
+            - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka:password@discovery-service:8761/eureka
+            - EUREKA_CLIENT_REGISTER-WITH-EUREKA=true
+            - EUREKA_CLIENT_FETCH-REGISTRY=true
+            - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411
+            - SPRING_KAFKA_BOOTSTRAP_SERVERS=broker:29092
+            - SPRING_DATASOURCE_DRIVER-CLASS-NAME=org.postgresql.Driver
+            - SPRING_DATASOURCE_USERNAME=username
+            - SPRING_DATASOURCE_PASSWORD=password
+            - SPRING_JPA_HIBERNATE_DDL-AUTO=update
+            - SPRING_JPA_DATABASE_PLATFORM=org.hibernate.dialect.PostgreSQLDialect
+            - SERVER_PORT=8080
+        depends_on:
+            - postgres-order
+            - broker
+            - zipkin
+            - discovery-service
+            - gateway-service
+        links:
+            - discovery-service
+
+    ## Inventory-Service Docker Compose Config
+    inventory-service:
+        container_name: inventory-service
+        image: inventory-service:0.0.1
+        ports:
+            - "8082:8082"
+        environment:
+            - SPRING_PROFILES_ACTIVE=docker
+            - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-inventory:5432/inventory-service
+            - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka:password@discovery-service:8761/eureka
+            - EUREKA_CLIENT_REGISTER-WITH-EUREKA=true
+            - EUREKA_CLIENT_FETCH-REGISTRY=true
+            - SPRING_DATASOURCE_DRIVER-CLASS-NAME=org.postgresql.Driver
+            - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411
+            - SPRING_DATASOURCE_USERNAME=username
+            - SPRING_DATASOURCE_PASSWORD=password
+            - SPRING_JPA_DATABASE_PLATFORM=org.hibernate.dialect.PostgreSQLDialect
+            - SERVER_PORT=8080
+        depends_on:
+            - postgres-inventory
+            - discovery-service
+            - gateway-service
+
+    ## Notification-Service Docker Compose Config
+    notification-service:
+        container_name: notification-service
+        image: notification-service:0.0.1
+        ports:
+            - "8083:8083"
+        environment:
+            - SPRING_PROFILES_ACTIVE=docker
+            - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411
+            - SPRING_KAFKA_BOOTSTRAP-SERVERS=broker:29092
+            - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka:password@discovery-service:8761/eureka
+            - EUREKA_CLIENT_REGISTER-WITH-EUREKA=true
+            - EUREKA_CLIENT_FETCH-REGISTRY=true
+        depends_on:
+            - zipkin
+            - broker
+            - discovery-service
+            - gateway-service

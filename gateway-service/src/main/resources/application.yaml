@@ -6,7 +6,7 @@ eureka:
             defaultZone: http://eureka:password@localhost:8761/eureka
 spring:
     application:
-        name: gatewayService
+        name: gateway-service
     cloud:
         gateway:
             routes[0]:
@@ -19,18 +19,18 @@ spring:
                 predicates[0]: Path=/api/order
             routes[2]:
                 id: discovery-service
-                uri: http://localhost:8761
+                uri: http://eureka:password@${app.eureka-server}:8761
                 predicates[0]: Path=/eureka/web
                 filters[0]: SetPath=/
             routes[3]:
                 id: discovery-service-static
-                uri: http://localhost:8761
+                uri: http://eureka:password@${app.eureka-server}:8761
                 predicates[0]: Path=/eureka/**
     security:
         oauth2:
             resource-server:
                 jwt:
-                    issuer-uri: http://localhost:8181/realms/Multiservices-realm
+                    issuer-uri: http://localhost:8080/realms/spring-multiservices-realm
 logging:
     level:
         org.springframework.cloud.gateway.handler.RoutePredicateHandlerMapping: TRACE
