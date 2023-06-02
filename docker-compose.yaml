@@ -107,7 +107,7 @@ services:
 
         ## Eureka Server
     discovery-service:
-        image: discovery-service:0.0.1
+        image: discovery-service:0.0.2
         container_name: discovery-service
         ports:
             - "8761:8761"
@@ -119,7 +119,7 @@ services:
             - zipkin
 
     gateway-service:
-        image: gateway-service:0.0.3
+        image: gateway-service:0.0.5
         container_name: gateway-service
         ports:
             - "8181:8080"
@@ -143,9 +143,7 @@ services:
     ## Product-Service Docker Compose Config
     product-service:
         container_name: product-service
-        image: product-service:0.0.1
-        ports:
-            - "8084:8084"
+        image: product-service:0.0.4
         environment:
             - SPRING_PROFILES_ACTIVE=docker
             - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://eureka:password@discovery-service:8761/eureka
@@ -155,6 +153,7 @@ services:
             - SPRING_DATA_MONGODB_HOST=mongo
             - SPRING_DATA_MONGODB_PORT=27017
             - SPRING_DATA_MONGODB_DATABASE=product-service
+            - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=*
             - SERVER_PORT=8080
         depends_on:
             - mongo
@@ -164,9 +163,7 @@ services:
     ## Order-Service Docker Compose Config
     order-service:
         container_name: order-service
-        image: order-service:0.0.4
-        ports:
-            - "8081:8081"
+        image: order-service:0.0.6
         environment:
             - SPRING_PROFILES_ACTIVE=docker
             - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-order:5431/order-service
@@ -193,9 +190,7 @@ services:
     ## Inventory-Service Docker Compose Config
     inventory-service:
         container_name: inventory-service
-        image: inventory-service:0.0.1
-        ports:
-            - "8082:8082"
+        image: inventory-service:0.0.7
         environment:
             - SPRING_PROFILES_ACTIVE=docker
             - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-inventory:5432/inventory-service
@@ -206,19 +201,21 @@ services:
             - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411
             - SPRING_DATASOURCE_USERNAME=username
             - SPRING_DATASOURCE_PASSWORD=password
+            - SPRING_JPA_HIBERNATE_DDL-AUTO=update
             - SPRING_JPA_DATABASE_PLATFORM=org.hibernate.dialect.PostgreSQLDialect
+            - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=*
             - SERVER_PORT=8080
         depends_on:
             - postgres-inventory
             - discovery-service
             - gateway-service
+        links:
+            - discovery-service
 
     ## Notification-Service Docker Compose Config
     notification-service:
         container_name: notification-service
-        image: notification-service:0.0.1
-        ports:
-            - "8083:8083"
+        image: notification-service:0.0.5
         environment:
             - SPRING_PROFILES_ACTIVE=docker
             - MANAGEMENT_ZIPKIN_TRACING_ENDPOINT=http://zipkin:9411
@@ -231,3 +228,31 @@ services:
             - broker
             - discovery-service
             - gateway-service
+
+    prometheus:
+        image: prom/prometheus:latest
+        container_name: prometheus
+        restart: always
+        ports:
+            - "9090:9090"
+        volumes:
+            - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+        depends_on:
+            - product-service
+            - inventory-service
+            - order-service
+            - notification-service
+
+    grafana:
+        image: grafana/grafana-oss:latest
+        container_name: grafana
+        restart: always
+        ports:
+            - "3000:3000"
+        links:
+            - prometheus:prometheus
+        volumes:
+            - ./grafana:/var/lib/grafana
+        environment:
+            - GF_SECURITY_ADMIN_USER=admin
+            - GF_SECURITY_ADMIN_PASSWORD=password
